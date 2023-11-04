@@ -69,7 +69,7 @@
     }
 
     #map {
-        height: 50vh;
+        height: 100vh;
         width: 100%;
     }
 
@@ -98,14 +98,12 @@
 
     <div class="container">
         <div id="map"></div>
-        <div id="table"></div>
     </div>
 
     <script>
 
         let map;
         let editablePolygon;
-
         const areas = document.getElementById("areas");
 
         const allShapes = new Proxy([], {
@@ -138,6 +136,8 @@
                 map.setZoom(16);
             });
 
+            // Initialize a variable to keep track of the open info window
+            let openInfoWindow = null;
 
             d3.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSvvJWVLKAcyhDcbswtgWvwprYYd3MObFuTeI4cWdBnFve9BskLIwHBDOdG3StkN6_xRJJ6nYX-9lyp/pub?output=csv")
                 .then(data => {
@@ -150,6 +150,27 @@
                             map: map,
                             title: d.name,
                         });
+                        marker.addListener("click", () => {
+
+                            const addr = d['Site Address']
+                            const content = `
+                                <div>
+                                    <div><b>${addr}<b></div>
+
+                                </div>
+                            `
+
+
+                            if (openInfoWindow) {
+                                openInfoWindow.close();
+                            }
+                            const infoWindow = new google.maps.InfoWindow({
+                                content
+                            });
+                            infoWindow.open(map, marker);
+                            openInfoWindow = infoWindow;
+                        });
+
                         bounds.extend(marker.position);
                     })
                     map.fitBounds(bounds);
