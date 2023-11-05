@@ -78,6 +78,14 @@
         overflow: auto;
     }
 
+    .input-container {
+        display: flex;
+        flex-direction: column;
+        margin-top: 10px;
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+
     .container {
         display: flex;
         width: 100%;
@@ -105,6 +113,7 @@
         let map;
         let editablePolygon;
         const areas = document.getElementById("areas");
+        const mainData = [];
 
         const allShapes = new Proxy([], {
             set: function (target, key, value) {
@@ -142,44 +151,74 @@
             d3.csv("https://docs.google.com/spreadsheets/d/e/2PACX-1vSvvJWVLKAcyhDcbswtgWvwprYYd3MObFuTeI4cWdBnFve9BskLIwHBDOdG3StkN6_xRJJ6nYX-9lyp/pub?output=csv")
                 .then(data => {
                     console.log('data', data);
-                    //add google pin wiht fit bounds 
-                    const bounds = new google.maps.LatLngBounds();
-                    data.forEach(d => {
-                        const marker = new google.maps.Marker({
-                            position: { lat: +d.lat, lng: +d.lng },
-                            map: map,
-                            title: d.name,
-                        });
-                        marker.addListener("click", () => {
-
-                            const addr = d['Site Address']
-                            const content = `
-                                <div>
-                                    <div><b>${addr}<b></div>
-
-                                </div>
-                            `
-
-
-                            if (openInfoWindow) {
-                                openInfoWindow.close();
-                            }
-                            const infoWindow = new google.maps.InfoWindow({
-                                content
-                            });
-                            infoWindow.open(map, marker);
-                            openInfoWindow = infoWindow;
-                        });
-
-                        bounds.extend(marker.position);
-                    })
-                    map.fitBounds(bounds);
-
-
+                    mainData.push(...data)
+                    printPins(data);
                 })
 
-        }
 
+            function printPins(data) {
+                //add google pin wiht fit bounds 
+                const bounds = new google.maps.LatLngBounds();
+                data.forEach(d => {
+                    const marker = new google.maps.Marker({
+                        position: { lat: +d.lat, lng: +d.lng },
+                        map: map,
+                        title: d.name,
+                    });
+                    marker.addListener("click", () => {
+
+                        const addr = d['Site Address']
+                        const info = document.createElement("div");
+                        info.className = "info";
+                        info.innerHTML = `
+                            <div>
+                                <div><b>${addr}<b></div>
+                            </div>
+                            `
+                        const input = document.createElement("textarea");
+                        input.className = "text";
+                        input.placeholder = "Notes";
+                        input.style.height = "100px";
+                        input.value = d.Notes;
+
+                        const button = document.createElement("button");
+                        button.className = "Save";
+                        button.innerHTML = "Save";
+                        button.addEventListener("click", () => {
+                            fetch("https://serg.one/php-spreadsheet-api/api.php", {
+                                method: "POST",
+                                body: JSON.stringify({
+                                    "rowid": d.rowid,
+                                    "notes": input.value
+                                })
+                            }).then(res => {
+                                console.log('res', res);
+                                res.json()
+                                //update the notes text
+                                d.Notes = input.value;
+                            })
+                        })
+                        const div = document.createElement("div");
+                        div.className = "input-container";
+                        div.appendChild(info);
+                        div.appendChild(input);
+                        div.appendChild(button);
+
+                        if (openInfoWindow) {
+                            openInfoWindow.close();
+                        }
+                        const infoWindow = new google.maps.InfoWindow();
+                        infoWindow.setContent(div);
+
+                        infoWindow.open(map, marker);
+                        openInfoWindow = infoWindow;
+                    });
+
+                    bounds.extend(marker.position);
+                })
+                map.fitBounds(bounds);
+            }
+        }
     </script>
     <script
         src="https://maps.googleapis.com/maps/api/js?key=AIzaSyDaT_HTZwFojXmvYIhwWudK00vFXzMmOKc&callback=initMap&libraries=places,drawing,geometry&v=weekly"
